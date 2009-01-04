@@ -25,19 +25,21 @@
  * [hxxxxxxxxxxhx] x = data
  */
 #ifndef MALLOC_SPLIT
-void	chunk_split(t_chunk_list *list, t_chunk *chunk, size_t size)
+void
+chunk_split(struct malloc_infos *list, struct chunk *chunk, size_t size)
 {
   (void) list;
   (void) chunk;
   (void) size;
 }
 #else
-void	chunk_split(t_chunk_list *list, t_chunk *chunk, size_t size)
+void
+chunk_split(struct malloc_infos *list, struct chunk *chunk, size_t size)
 {
-  t_chunk	*new;
+  struct chunk *new;
 
-  if (chunk->size <= size * 2)
-    return ;
+  if (chunk->size - size < MALLOC_MINSIZE)
+    return;
   new = chunk + size;
   new->size = chunk->size - size;
   chunk->size = size;

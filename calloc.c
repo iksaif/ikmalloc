@@ -18,9 +18,10 @@
 
 #include "malloc.h"
 
-void	*calloc(size_t nmemb, size_t size)
+void *
+calloc(size_t nmemb, size_t size)
 {
-  void	*p;
+  void *p;
 
   p = malloc(nmemb * size);
   if (p)

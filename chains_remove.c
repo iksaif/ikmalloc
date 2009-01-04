@@ -28,21 +28,24 @@
     chunk->name##_next = NULL;					\
   } while (0)
 
-void	chunk_remove_free(t_chunk_list *list, t_chunk *chunk)
+void
+chunk_remove_free(struct malloc_infos *list, struct chunk *chunk)
 {
-  int	i;
+  int i;
 
   i = free_bucket(chunk->size);
   LIST_REMOVE(list->lfree[i], chunk, free);
   chunk->type = MALLOC_CHUNK_USED;
 }
 
-void	chunk_remove_main(t_chunk_list *list, t_chunk *chunk)
+void
+chunk_remove_main(struct malloc_infos *list, struct chunk *chunk)
 {
   LIST_REMOVE(list->lmain, chunk, main);
 }
 
-void	chunk_remove(t_chunk_list *list, t_chunk *chunk)
+void
+chunk_remove(struct malloc_infos *list, struct chunk *chunk)
 {
   chunk_remove_free(list, chunk);
   chunk_remove_main(list, chunk);

@@ -27,16 +27,20 @@
       list = chunk;					\
   } while (0)
 
-void	chunk_insert_free(t_chunk_list *list, t_chunk *pos, t_chunk *chunk)
+void
+chunk_insert_free(struct malloc_infos *list, struct chunk *pos,
+		  struct chunk *chunk)
 {
-  int	i;
+  int i;
 
   i = free_bucket(chunk->size);
   LIST_INSERT(list->lfree[i], pos, chunk, free);
   chunk->type = MALLOC_CHUNK_FREE;
 }
 
-void	chunk_insert_main(t_chunk_list *list, t_chunk *pos, t_chunk *chunk)
+void
+chunk_insert_main(struct malloc_infos *list, struct chunk *pos,
+		  struct chunk *chunk)
 {
   LIST_INSERT(list->lmain, pos, chunk, main);
 }

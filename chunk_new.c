@@ -19,13 +19,14 @@
 
 #include "malloc.h"
 
-t_chunk		*chunk_new(t_chunk_list *list, size_t units)
+struct chunk *
+chunk_new(struct malloc_infos *list, size_t units)
 {
-  t_chunk	*chunk;
+  struct chunk *chunk;
 
   units = MAX(units, MALLOC_MIN_BRK_SIZE);
-  chunk = sbrk(units * sizeof (t_chunk));
-  if (chunk == (t_chunk *)-1)
+  chunk = sbrk(units * sizeof(struct chunk));
+  if (chunk == (struct chunk *) -1)
     return (NULL);
   chunk->size = units;
   chunk_append(list, chunk);

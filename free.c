@@ -16,7 +16,8 @@
 
 #include "malloc.h"
 
-void	free(void *ptr)
+void
+free(void *ptr)
 {
   free_chunk(ptr);
 }

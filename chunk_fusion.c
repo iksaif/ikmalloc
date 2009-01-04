@@ -19,14 +19,15 @@
 #include "malloc.h"
 
 #ifndef MALLOC_SPLIT
-void	chunk_fusion(t_chunk_list *list, t_chunk *chunk)
+void
+chunk_fusion(struct malloc_infos *list, struct chunk *chunk)
 {
   (void) list;
   (void) chunk;
 }
 #else
-static void	_chunk_fusion(t_chunk_list *list,
-			      t_chunk *prev, t_chunk *next)
+static void
+_chunk_fusion(struct malloc_infos *list, struct chunk *prev, struct chunk *next)
 {
   if (next == prev + prev->size)
     {
@@ -37,10 +38,11 @@ static void	_chunk_fusion(t_chunk_list *list,
     }
 }
 
-void	chunk_fusion(t_chunk_list *list, t_chunk *chunk)
+void
+chunk_fusion(struct malloc_infos *list, struct chunk *chunk)
 {
-  t_chunk	*next;
-  t_chunk	*prev;
+  struct chunk *next;
+  struct chunk *prev;
 
   next = chunk->main_next;
   prev = chunk->main_prev;

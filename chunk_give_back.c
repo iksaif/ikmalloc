@@ -19,19 +19,20 @@
 
 #include "malloc.h"
 
-void		chunk_give_back(t_chunk_list *list)
+void
+chunk_give_back(struct malloc_infos *list)
 {
-  t_chunk	*chunk;
+  struct chunk *chunk;
 
   chunk = list->lmain;
   if (!chunk)
-    return ;
+    return;
   if (chunk->size < MALLOC_GIVE_BACK_SIZE)
-    return ;
+    return;
   if (chunk->type != MALLOC_CHUNK_FREE)
-    return ;
-  if ((char *)chunk + (chunk->size / sizeof (*chunk)) != sbrk(0))
-    return ;
+    return;
+  if ((char *) chunk + (chunk->size / sizeof(*chunk)) != sbrk(0))
+    return;
   chunk_remove(list, chunk);
   brk(chunk);
 }

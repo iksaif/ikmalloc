@@ -9,7 +9,8 @@ LDLIBS	+=
 HEADERS =	malloc.h
 SRCS	=	malloc.c realloc.c calloc.c free.c chunk.c chunk_give_back.c \
 		chunk_fusion.c chunk_split.c chunk_size.c chunk_new.c \
-		chains_append.c chains_insert.c chains_remove.c chunk_search.c
+		chains_append.c chains_insert.c chains_remove.c chunk_search.c \
+		valloc.c memalign.c
 
 OBJS	=	$(SRCS:.c=.o)
 

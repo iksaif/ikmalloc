@@ -20,10 +20,11 @@
 
 #include "malloc.h"
 
-void		*realloc(void *ptr, size_t size)
+void *
+realloc(void *ptr, size_t size)
 {
-  void		*ret;
-  size_t	as;
+  void *ret;
+  size_t as;
 
   if (!size)
     {

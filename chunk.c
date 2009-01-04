@@ -22,82 +22,167 @@
 
 #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 
-static t_chunk_list list = { .needinit = 1 };
+static struct malloc_infos arena = {.needinit = 1 };
 
-static void	lock(void)
+static void
+lock(void)
 {
-  while (list.lock);
-  list.lock = 1;
+  pthread_mutex_lock(&arena.mutex);
 }
 
-static void	unlock(void)
+static void
+unlock(void)
 {
-  list.lock = 0;
+  pthread_mutex_unlock(&arena.mutex);
 }
 
-static size_t	npowof2(size_t size)
+static size_t
+npowof2(size_t size)
 {
-  size_t	i;
+  size_t i;
 
   size--;
-  for (i = 1; i < sizeof (size) * 8; i <<= 1)
+  for (i = 1; i < sizeof(size) * 8; i <<= 1)
     size = size | (size >> i);
   return (size + 1);
 }
 
-void		*get_chunk(size_t size)
+static void
+malloc_init(void)
 {
-  t_chunk	*chunk;
-  size_t	units;
-
-  if (list.needinit)
-    memset(&list, 0, sizeof (list));
-  if (!size)
-    return (NULL);
-  chunk = NULL;
-  units = npowof2(DIV_ROUND_UP(size, sizeof (t_chunk)) + 1);
-  lock();
-  chunk = chunk_search(&list, units);
-  if (chunk)
-    {
-      chunk_remove_free(&list, chunk);
-      chunk_split(&list, chunk, units);
-      chunk->asked_size = size;
-    }
-  unlock();
-  return (chunk ? chunk + 1 : NULL);
+  if (arena.needinit)
+    memset(&arena, 0, sizeof(arena));
+  pthread_mutex_init(&arena.mutex, NULL);
 }
 
-void		free_chunk(void *ptr)
+static struct chunk *
+mem2chunk(void *p)
 {
-  t_chunk	*chunk;
+  return ((struct chunk *) p - 1);
+}
+
+static void *
+chunk2mem(struct chunk *chunk)
+{
+  return chunk + 1;
+}
+
+void *
+get_chunk_aligned(size_t size, size_t alignment)
+{
+  struct chunk *chunk = NULL, *newp;
+  char *p;
+  size_t units;
+
+  malloc_init();
+  if (alignment <= MALLOC_ALIGNMENT)
+    alignment = 0;
+  if ((alignment & (alignment - 1)) != 0)
+    alignment = npowof2(alignment);
+  if (!alignment)
+    return get_chunk(size);
+  if (!size)
+    return NULL;
+  units = npowof2(DIV_ROUND_UP(size + MALLOC_MINSIZE + alignment, sizeof(struct chunk)) + 1);
+  lock();
+  chunk = chunk_search(&arena, units);
+  if (chunk)
+    {
+      chunk_remove_free(&arena, chunk);
+      chunk->asked_size = size;
+      chunk->alignment = alignment;
+    }
+  unlock();
+  p = chunk2mem(chunk);
+  if ((((unsigned long) (p)) % alignment) == 0)
+    {
+      char *brk = (char *) mem2chunk((void *)(((unsigned long) (p + alignment - 1)) &
+					      -((signed long) alignment)));
+      if ((unsigned long) (brk - (char *) (p)) < MALLOC_MINSIZE)
+	brk += alignment;
+
+      newp = (struct chunk *) brk;
+      memmove(newp, chunk, sizeof (struct chunk));
+      chunk->size = chunk - newp - 1;
+      newp->size = newp->size - chunk->size;
+      chunk_insert_main(&arena, newp, chunk);
+      chunk_append_free(&arena, chunk);
+      chunk = newp;
+      p = chunk2mem(chunk);
+    }
+  chunk_split(&arena, chunk, units);
+  return p;
+}
+
+/*
+ Faire deux gestruct chunk (un aligné et pas l'autre)
+ Utiliser likely et unlikely
+ Faire mieux les stats
+ Faire les macros MALLOC_MIN et MALLOC_ALIGNMENT
+ Voir pour size_t trop petit des fois
+ Implémenter
+ posix_memalign
+ strdup
+ strndup
+ asprintf
+ asvprintf
+*/
+void *
+get_chunk(size_t size)
+{
+  struct chunk *chunk = NULL;
+  size_t units;
+
+  malloc_init();
+  if (!size)
+    return NULL;
+  units = npowof2(DIV_ROUND_UP(size, sizeof(struct chunk)) + 1);
+  lock();
+  chunk = chunk_search(&arena, units);
+  if (chunk)
+    {
+      chunk_remove_free(&arena, chunk);
+      chunk_split(&arena, chunk, units);
+      chunk->asked_size = size;
+      chunk->alignment = 0;
+    }
+  unlock();
+  return chunk2mem(chunk);
+}
+
+void
+free_chunk(void *ptr)
+{
+  struct chunk *chunk;
 
   if (!ptr)
-    return ;
-  chunk = ((t_chunk *)ptr - 1);
+    return;
+  chunk = ((struct chunk *) ptr - 1);
   if (chunk->type != MALLOC_CHUNK_USED)
     {
       fprintf(stderr, "Double free corruption %p\n", ptr);
-      return ;
+      return;
     }
   lock();
-  chunk_append_free(&list, chunk);
-  chunk_fusion(&list, chunk);
-  chunk_give_back(&list);
+  chunk_append_free(&arena, chunk);
+  chunk_fusion(&arena, chunk);
+  chunk_give_back(&arena);
   unlock();
 }
 
-void		show_alloc_mem(void)
+void
+show_alloc_mem(void)
 {
-  t_chunk	*chunk;
+  struct chunk *chunk;
 
-  printf("break: %p\n", sbrk(0));
-  chunk = list.lmain;
-    while (chunk)
-      {
-	printf("%p - %p", (void *) (chunk + 1),
-	       (void *) (chunk->asked_size + (char *) (chunk + 1)));
-	printf(" : %zu octets\n", chunk->asked_size);
-	chunk = chunk->main_next;
-      }
+  chunk = arena.lmain;
+  puts("START\tSIZE\tASKED_SIZE");
+  while (chunk)
+    {
+      printf("%p\t", (void *) (chunk + 1));
+      printf("%zu\t%zu\n",
+	     chunk->size * sizeof (struct chunk),
+	     chunk->asked_size);
+      chunk = chunk->main_next;
+    }
 }

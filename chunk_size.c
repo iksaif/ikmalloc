@@ -16,9 +16,10 @@
 
 #include "malloc.h"
 
-size_t	chunk_size(void *ptr)
+size_t
+chunk_size(void *ptr)
 {
   if (!ptr)
     return (0);
-  return ((((t_chunk *)ptr - 1)->size - 1) * sizeof (t_chunk));
+  return ((((struct chunk *) ptr - 1)->size - 1) * sizeof(struct chunk));
 }

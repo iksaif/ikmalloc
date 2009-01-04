@@ -18,9 +18,10 @@
 
 #include "malloc.h"
 
-void	*malloc(size_t size)
+void *
+malloc(size_t size)
 {
-  void	*p;
+  void *p;
 
   if (!size)
     return (NULL);

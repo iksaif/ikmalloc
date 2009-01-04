@@ -18,6 +18,7 @@
 # define MALLOC_H_
 
 # include <stdlib.h>
+# include <pthread.h>
 
 # define MALLOC_SPLIT
 
@@ -25,8 +26,8 @@
 #  define MALLOC_CHUNK_FREE	0
 #  define MALLOC_CHUNK_USED	1
 # else
-#  define MALLOC_CHUNK_FREE	0x42424242
-#  define MALLOC_CHUNK_USED	0x21212121
+#  define MALLOC_CHUNK_FREE	0xdeadbeef
+#  define MALLOC_CHUNK_USED	0xbeefdead
 # endif
 
 # define MALLOC_MIN_BRK_SIZE	1024
@@ -35,53 +36,66 @@
 # define MALLOC_SHIFT_LOW	1
 # define MALLOC_SHIFT_HIGH	10
 
-void	*calloc(size_t nmemb, size_t size);
-void	*malloc(size_t size);
-void	free(void *ptr);
-void	*realloc(void *ptr, size_t size);
+# define MALLOC_MINSIZE		(1 << MALLOC_SHIFT_LOW)
+# define MALLOC_ALIGNMENT	(sizeof (size_t) * 2)
 
-struct s_chunk;
+void *malloc(size_t size);
+void *calloc(size_t nmemb, size_t size);
+
+int posix_memalign(void **memptr, size_t alignment, size_t size);
+
+void *valloc(size_t size);
+void *memalign(size_t boundary, size_t size);
+
+void *realloc(void *ptr, size_t size);
+
+void free(void *ptr);
+
 
 /* The size must be a power of two ... */
-typedef struct		s_chunk
+struct chunk
 {
-  struct s_chunk	*main_next;
-  struct s_chunk	*main_prev;
-  struct s_chunk	*free_next;
-  struct s_chunk	*free_prev;
-  size_t		size;
-  size_t		type;
-  size_t		asked_size;
-  size_t		dummy;
-}			t_chunk;
+  struct chunk *main_next;
+  struct chunk *main_prev;
+  struct chunk *free_next;
+  struct chunk *free_prev;
+  size_t size;
+  size_t type;
+  size_t asked_size;
+  size_t alignment;
+};
 
-typedef struct		s_chunk_list
+struct malloc_infos
 {
   /* both point to the last member */
-  struct s_chunk	*lmain;
-  struct s_chunk	*lfree[MALLOC_SHIFT_HIGH + 1];
-  int			lock;
-  int			needinit;
-}			t_chunk_list;
+  struct chunk *lmain;
+  struct chunk *lfree[MALLOC_SHIFT_HIGH + 1];
+  pthread_mutex_t mutex;
+  int needinit;
+};
 
-void	free_chunk(void *ptr);
-void	*get_chunk(size_t size);
-size_t	chunk_size(void *ptr);
+void free_chunk(void *ptr);
+void *get_chunk(size_t size);
+void *get_chunk_aligned(size_t size, size_t alignment);
+size_t chunk_size(void *ptr);
 
-void	chunk_remove_free(t_chunk_list *list, t_chunk *chunk);
-void	chunk_append_free(t_chunk_list *list, t_chunk *chunk);
-void	chunk_append_main(t_chunk_list *list, t_chunk *chunk);
-void	chunk_remove_main(t_chunk_list *list, t_chunk *chunk);
-void	chunk_remove(t_chunk_list *list, t_chunk *chunk);
-void	chunk_append(t_chunk_list *list, t_chunk *chunk);
-t_chunk		*chunk_new(t_chunk_list *list, size_t units);
-t_chunk		*chunk_search(t_chunk_list *list, size_t units);
-void	chunk_give_back(t_chunk_list *list);
-void	chunk_split(t_chunk_list *list, t_chunk *chunk, size_t size);
-void	chunk_fusion(t_chunk_list *list, t_chunk *chunk);
+void chunk_remove_free(struct malloc_infos *list, struct chunk *chunk);
+void chunk_append_free(struct malloc_infos *list, struct chunk *chunk);
+void chunk_append_main(struct malloc_infos *list, struct chunk *chunk);
+void chunk_remove_main(struct malloc_infos *list, struct chunk *chunk);
+void chunk_remove(struct malloc_infos *list, struct chunk *chunk);
+void chunk_append(struct malloc_infos *list, struct chunk *chunk);
+struct chunk *chunk_new(struct malloc_infos *list, size_t units);
+struct chunk *chunk_search(struct malloc_infos *list, size_t units);
+void chunk_give_back(struct malloc_infos *list);
+void chunk_split(struct malloc_infos *list, struct chunk *chunk, size_t size);
+void chunk_fusion(struct malloc_infos *list, struct chunk *chunk);
 
-void	chunk_insert_free(t_chunk_list *list, t_chunk *pos, t_chunk *chunk);
-void	chunk_insert_main(t_chunk_list *list, t_chunk *pos, t_chunk *chunk);
+void chunk_insert_free(struct malloc_infos *list, struct chunk *pos,
+		       struct chunk *chunk);
+void chunk_insert_main(struct malloc_infos *list, struct chunk *pos,
+		       struct chunk *chunk);
+void show_alloc_mem(void);
 
 # define MIN(a, b)  ((a) < (b) ? (a) : (b))
 # define MAX(a, b)  ((a) > (b) ? (a) : (b))
@@ -89,9 +103,10 @@ void	chunk_insert_main(t_chunk_list *list, t_chunk *pos, t_chunk *chunk);
 # include <stdio.h>
 # include <unistd.h>
 
-static inline int	free_bucket(size_t size)
+static inline int
+free_bucket(size_t size)
 {
-  size_t		i;
+  size_t i;
 
   i = MALLOC_SHIFT_LOW;
   while (i < MALLOC_SHIFT_HIGH)
