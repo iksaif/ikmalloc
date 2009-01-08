@@ -58,13 +58,13 @@ malloc_init(void)
 static struct chunk *
 mem2chunk(void *p)
 {
-  return ((struct chunk *) p - 1);
+  return (p ? (struct chunk *) p - 1 : NULL);
 }
 
 static void *
 chunk2mem(struct chunk *chunk)
 {
-  return chunk + 1;
+  return (chunk ? chunk + 1 : NULL);
 }
 
 void *
@@ -83,7 +83,7 @@ get_chunk_aligned(size_t size, size_t alignment)
     return get_chunk(size);
   if (!size)
     return NULL;
-  units = npowof2(DIV_ROUND_UP(size + MALLOC_MINSIZE + alignment, sizeof(struct chunk)) + 1);
+  units = npowof2(DIV_ROUND_UP(size + MALLOC_MINSIZE + alignment, sizeof(struct chunk)) + 2);
   lock();
   chunk = chunk_search(&arena, units);
   if (chunk)
@@ -94,31 +94,32 @@ get_chunk_aligned(size_t size, size_t alignment)
     }
   unlock();
   p = chunk2mem(chunk);
-  if ((((unsigned long) (p)) % alignment) == 0)
+  if ((((unsigned long) (p)) % alignment) != 0)
     {
       char *brk = (char *) mem2chunk((void *)(((unsigned long) (p + alignment - 1)) &
 					      -((signed long) alignment)));
+      printf("- %ld %zd\n", ((unsigned long) p) % alignment, alignment);
       if ((unsigned long) (brk - (char *) (p)) < MALLOC_MINSIZE)
 	brk += alignment;
-
       newp = (struct chunk *) brk;
       memmove(newp, chunk, sizeof (struct chunk));
-      chunk->size = chunk - newp - 1;
+      chunk->size = newp - chunk - 1;
+      printf("%zd\n", chunk->size);
       newp->size = newp->size - chunk->size;
       chunk_insert_main(&arena, newp, chunk);
       chunk_append_free(&arena, chunk);
       chunk = newp;
       p = chunk2mem(chunk);
     }
-  chunk_split(&arena, chunk, units);
+  //chunk_split(&arena, chunk, units);
   return p;
 }
 
 /*
- Faire deux gestruct chunk (un aligné et pas l'autre)
+  unmap
+
  Utiliser likely et unlikely
  Faire mieux les stats
- Faire les macros MALLOC_MIN et MALLOC_ALIGNMENT
  Voir pour size_t trop petit des fois
  Implémenter
  posix_memalign

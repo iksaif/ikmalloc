@@ -19,6 +19,7 @@
 
 #include "malloc.h"
 
+extern char *__current_brk;
 void
 chunk_give_back(struct malloc_infos *list)
 {
@@ -31,8 +32,10 @@ chunk_give_back(struct malloc_infos *list)
     return;
   if (chunk->type != MALLOC_CHUNK_FREE)
     return;
-  if ((char *) chunk + (chunk->size / sizeof(*chunk)) != sbrk(0))
+#if _MALLOC_USES_SBRK
+  if ((char *) chunk + (chunk->size / sizeof(*chunk)) > __curent_brk)
     return;
   chunk_remove(list, chunk);
   brk(chunk);
+#endif
 }
