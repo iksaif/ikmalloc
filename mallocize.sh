@@ -1,3 +1,3 @@
 #!/bin/bash
 
-LD_PRELOAD="./libmy_malloc.so" $@
+LD_PRELOAD="./libikmalloc.so" $@

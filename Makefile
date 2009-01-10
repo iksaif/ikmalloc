@@ -1,5 +1,4 @@
-NAME	= libmy_malloc_`uname -s`.so
-LINK	= libmy_malloc.so
+NAME	= libikmalloc.so
 
 CC	= gcc
 
@@ -22,10 +21,8 @@ LFLAGS	+= -shared -lpthread
 .PHONY		:	all clean fclean re
 .SUFFIXES	:	.c .o
 
-$(LINK)	:	$(OBJS) Makefile
+$(NAME)	:	$(OBJS) Makefile
 	$(CC) $(CFLAGS) $(LDLIBS) -o $(NAME) $(OBJS) $(LFLAGS)
-	rm -f $(LINK)
-	ln -s $(NAME) $(LINK) 
 
 .c.o	:	$(HEADERS)
 	$(CC) $(INCDIRS) $(CFLAGS) -c $*.c
@@ -37,6 +34,5 @@ re	:	mrproper all
 
 mrproper:	clean
 	rm -f $(NAME)
-	rm -f $(LINK)
 
-all	:	$(LINK)
+all	:	$(NAME)
