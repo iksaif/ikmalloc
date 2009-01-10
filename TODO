@@ -1,3 +1,4 @@
+- Big problem with threads !
 
 - Use munmap in chunk_give_back
 - Use mremap in realloc
