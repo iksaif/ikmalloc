@@ -16,8 +16,8 @@ OBJS	=	$(SRCS:.c=.o)
 
 CFLAGS	= -O2 -ggdb3
 CFLAGS	+= -std=c99 -fPIC
-CFLAGS	+= -Wall -W -Wstrict-prototypes -pedantic -Werror -D_GNU_SOURCE
-LFLAGS	+= -shared
+CFLAGS	+= -Wall -W -Wstrict-prototypes -pedantic -Werror -D_GNU_SOURCE -DMALLOC_DEBUG
+LFLAGS	+= -shared -lpthread
 
 .PHONY		:	all clean fclean re
 .SUFFIXES	:	.c .o

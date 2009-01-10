@@ -29,11 +29,11 @@ chunk_fusion(struct malloc_infos *list, struct chunk *chunk)
 static void
 _chunk_fusion(struct malloc_infos *list, struct chunk *prev, struct chunk *next)
 {
-  if (next == prev + prev->size)
+  if ((char *)next == (char *)prev + prev->size)
     {
       chunk_remove_free(list, prev);
       chunk_remove(list, next);
-      prev->size += next->size;
+      prev->size += next->size + sizeof (struct chunk);
       chunk_append_free(list, prev);
     }
 }

@@ -19,17 +19,17 @@
 #include "malloc.h"
 
 static struct chunk *
-search_buckets(struct malloc_infos *list, size_t units)
+search_buckets(struct malloc_infos *list, size_t size)
 {
   struct chunk *chunk;
   int i;
 
   chunk = NULL;
-  i = free_bucket(units);
+  i = free_bucket(size);
   while (i <= MALLOC_SHIFT_HIGH && !chunk)
     {
       chunk = list->lfree[i];
-      while (chunk && chunk->size < units)
+      while (chunk && chunk->size < size)
 	chunk = chunk->free_prev;
       i++;
     }
@@ -37,10 +37,10 @@ search_buckets(struct malloc_infos *list, size_t units)
 }
 
 struct chunk *
-chunk_search(struct malloc_infos *list, size_t units)
+chunk_search(struct malloc_infos *list, size_t size)
 {
   struct chunk *chunk;
 
-  chunk = search_buckets(list, units);
-  return (chunk ? chunk : chunk_new(list, units));
+  chunk = search_buckets(list, size);
+  return (chunk ? chunk : chunk_new(list, size));
 }

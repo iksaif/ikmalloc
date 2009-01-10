@@ -33,7 +33,7 @@ chunk_give_back(struct malloc_infos *list)
   if (chunk->type != MALLOC_CHUNK_FREE)
     return;
 #if _MALLOC_USES_SBRK
-  if ((char *) chunk + (chunk->size / sizeof(*chunk)) > __curent_brk)
+  if ((char *) chunk + (chunk->size + sizeof (struct chunk)) > __curent_brk)
     return;
   chunk_remove(list, chunk);
   brk(chunk);

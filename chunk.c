@@ -27,13 +27,21 @@ static struct malloc_infos arena = {.needinit = 1 };
 static void
 lock(void)
 {
+# ifdef MALLOC_USES_SPINLOCK
+  pthread_spin_unlock(&arena.mutex);
+# else
   pthread_mutex_lock(&arena.mutex);
+# endif
 }
 
 static void
 unlock(void)
 {
+# ifdef MALLOC_USES_SPINLOCK
+  pthread_spin_unlock(&arena.mutex);
+# else
   pthread_mutex_unlock(&arena.mutex);
+# endif
 }
 
 static size_t
@@ -52,7 +60,11 @@ malloc_init(void)
 {
   if (arena.needinit)
     memset(&arena, 0, sizeof(arena));
+# ifdef MALLOC_USES_SPINLOCK
+  pthread_spin_init(&arena.mutex, PTHREAD_PROCESS_SHARED);
+# else
   pthread_mutex_init(&arena.mutex, NULL);
+# endif
 }
 
 static struct chunk *
@@ -71,47 +83,47 @@ void *
 get_chunk_aligned(size_t size, size_t alignment)
 {
   struct chunk *chunk = NULL, *newp;
-  char *p;
-  size_t units;
+  size_t asize = size;
+  char *p = NULL;
 
   malloc_init();
   if (alignment <= MALLOC_ALIGNMENT)
-    alignment = 0;
+    return get_chunk(size);
   if ((alignment & (alignment - 1)) != 0)
     alignment = npowof2(alignment);
-  if (!alignment)
-    return get_chunk(size);
   if (!size)
     return NULL;
-  units = npowof2(DIV_ROUND_UP(size + MALLOC_MINSIZE + alignment, sizeof(struct chunk)) + 2);
+  size = npowof2(size + MALLOC_MINSIZE + alignment + sizeof (struct chunk));
   lock();
-  chunk = chunk_search(&arena, units);
-  if (chunk)
-    {
-      chunk_remove_free(&arena, chunk);
-      chunk->asked_size = size;
-      chunk->alignment = alignment;
-    }
-  unlock();
+  chunk = chunk_search(&arena, size);
+  if (!chunk)
+    goto end;
+  chunk_remove_free(&arena, chunk);
   p = chunk2mem(chunk);
   if ((((unsigned long) (p)) % alignment) != 0)
     {
-      char *brk = (char *) mem2chunk((void *)(((unsigned long) (p + alignment - 1)) &
-					      -((signed long) alignment)));
-      printf("- %ld %zd\n", ((unsigned long) p) % alignment, alignment);
-      if ((unsigned long) (brk - (char *) (p)) < MALLOC_MINSIZE)
+      char *brk = (char *) mem2chunk(align(p, alignment));
+
+      if ((long) (brk - (char *) (p)) < MALLOC_MINSIZE)
 	brk += alignment;
+
       newp = (struct chunk *) brk;
-      memmove(newp, chunk, sizeof (struct chunk));
-      chunk->size = newp - chunk - 1;
-      printf("%zd\n", chunk->size);
-      newp->size = newp->size - chunk->size;
-      chunk_insert_main(&arena, newp, chunk);
+      newp->size = chunk->size - sizeof (struct chunk) - (brk - p);
+      newp->type = MALLOC_CHUNK_USED;
+      chunk->size = brk - p;
+      chunk->alignment = 0;
+
+      chunk_insert_main(&arena, chunk, newp);
       chunk_append_free(&arena, chunk);
+
       chunk = newp;
+      chunk->alignment = alignment;
+      chunk->asked_size = asize;
       p = chunk2mem(chunk);
     }
-  //chunk_split(&arena, chunk, units);
+  chunk_split(&arena, chunk, asize);
+end:
+  unlock();
   return p;
 }
 
@@ -132,20 +144,20 @@ void *
 get_chunk(size_t size)
 {
   struct chunk *chunk = NULL;
-  size_t units;
+  size_t asize = size;
 
   malloc_init();
   if (!size)
     return NULL;
-  units = npowof2(DIV_ROUND_UP(size, sizeof(struct chunk)) + 1);
+  size = npowof2(size);
   lock();
-  chunk = chunk_search(&arena, units);
+  chunk = chunk_search(&arena, size);
   if (chunk)
     {
       chunk_remove_free(&arena, chunk);
-      chunk_split(&arena, chunk, units);
-      chunk->asked_size = size;
-      chunk->alignment = 0;
+      chunk_split(&arena, chunk, size);
+      chunk->asked_size = asize;
+      chunk->alignment = MALLOC_ALIGNMENT;
     }
   unlock();
   return chunk2mem(chunk);
@@ -156,12 +168,13 @@ free_chunk(void *ptr)
 {
   struct chunk *chunk;
 
+  malloc_init();
   if (!ptr)
     return;
   chunk = ((struct chunk *) ptr - 1);
   if (chunk->type != MALLOC_CHUNK_USED)
     {
-      fprintf(stderr, "Double free corruption %p\n", ptr);
+      fprintf(stderr, "Double free corruption %p %#zx\n", ptr, chunk->type);
       return;
     }
   lock();
@@ -177,13 +190,20 @@ show_alloc_mem(void)
   struct chunk *chunk;
 
   chunk = arena.lmain;
-  puts("START\tSIZE\tASKED_SIZE");
+  puts("START\t\tSIZE\tASIZE\tALIGN\tTYPE");
   while (chunk)
     {
-      printf("%p\t", (void *) (chunk + 1));
-      printf("%zu\t%zu\n",
-	     chunk->size * sizeof (struct chunk),
-	     chunk->asked_size);
-      chunk = chunk->main_next;
+      printf("%p\t", (void *) chunk);
+      printf("%zu\t%zu\t%zu\t", chunk->size,
+	     chunk->asked_size, chunk->alignment);
+      if (chunk->type == MALLOC_CHUNK_FREE)
+	puts("free");
+      else if (chunk->type == MALLOC_CHUNK_USED)
+	puts("used");
+      else
+	printf("bad (%zx)\n", chunk->type);
+      chunk = chunk->main_prev;
     }
+  for (int i = MALLOC_SHIFT_LOW; i <= MALLOC_SHIFT_HIGH; ++i)
+    printf("%6d : %zu\n", 1 << i, arena.lfree_cnt[i]);
 }

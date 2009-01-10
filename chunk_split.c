@@ -37,12 +37,20 @@ void
 chunk_split(struct malloc_infos *list, struct chunk *chunk, size_t size)
 {
   struct chunk *new;
+  size_t bytes;
 
-  if (chunk->size - size < MALLOC_MINSIZE)
+  bytes = size + sizeof (struct chunk);
+  if (bytes + MALLOC_ALIGNMENT >= chunk->size ||
+      chunk->size - bytes - MALLOC_ALIGNMENT <= MALLOC_MINSIZE ||
+      chunk->size - bytes - MALLOC_ALIGNMENT <= size)
     return;
-  new = chunk + size;
-  new->size = chunk->size - size;
-  chunk->size = size;
+
+  new = align((char *)chunk + bytes, MALLOC_ALIGNMENT);
+
+  bytes = (char *)new - (char *)chunk - sizeof (struct chunk);
+  new->size = chunk->size - bytes - sizeof (struct chunk);
+  chunk->size = bytes;
+
   chunk_insert_main(list, chunk, new);
   chunk_append_free(list, new);
 }

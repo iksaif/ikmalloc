@@ -28,12 +28,14 @@ chunk_new(struct malloc_infos *list, size_t units)
   units = MAX(units, MALLOC_MIN_BRK_SIZE);
 #if _MALLOC_USES_SBRK
   chunk = sbrk(units * sizeof(struct chunk));
+  if ((long) chunk == -1)
+    return (NULL);
 #else
   chunk = mmap(NULL, units * sizeof(struct chunk), PROT_READ | PROT_WRITE,
 	       MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
-#endif
-  if ((long) chunk == -1)
+  if (chunk == MAP_FAILED)
     return (NULL);
+#endif
   chunk->size = units;
   chunk_append(list, chunk);
   return (chunk);

@@ -19,7 +19,9 @@
 
 # include <stdlib.h>
 # include <pthread.h>
+# include <assert.h>
 
+# define MALLOC_USES_SPINLOCK
 # define MALLOC_SPLIT
 
 # ifndef MALLOC_DEBUG
@@ -30,11 +32,11 @@
 #  define MALLOC_CHUNK_USED	0xbeefdead
 # endif
 
-# define MALLOC_MIN_BRK_SIZE	1024
-# define MALLOC_GIVE_BACK_SIZE	128
+# define MALLOC_MIN_BRK_SIZE	4096
+# define MALLOC_GIVE_BACK_SIZE	1024
 
 # define MALLOC_SHIFT_LOW	1
-# define MALLOC_SHIFT_HIGH	10
+# define MALLOC_SHIFT_HIGH	20
 
 # define MALLOC_MINSIZE		(1 << MALLOC_SHIFT_LOW)
 # define MALLOC_ALIGNMENT	(sizeof (size_t) * 2)
@@ -67,11 +69,16 @@ struct chunk
 
 struct malloc_infos
 {
+  int needinit;
+# ifdef MALLOC_USES_SPINLOCK
+  pthread_spinlock_t mutex;
+# else
+  pthread_mutex_t mutex;
+# endif
   /* both point to the last member */
   struct chunk *lmain;
   struct chunk *lfree[MALLOC_SHIFT_HIGH + 1];
-  pthread_mutex_t mutex;
-  int needinit;
+  size_t lfree_cnt[MALLOC_SHIFT_HIGH + 1];
 };
 
 void free_chunk(void *ptr);
@@ -85,14 +92,12 @@ void chunk_append_main(struct malloc_infos *list, struct chunk *chunk);
 void chunk_remove_main(struct malloc_infos *list, struct chunk *chunk);
 void chunk_remove(struct malloc_infos *list, struct chunk *chunk);
 void chunk_append(struct malloc_infos *list, struct chunk *chunk);
-struct chunk *chunk_new(struct malloc_infos *list, size_t units);
-struct chunk *chunk_search(struct malloc_infos *list, size_t units);
+struct chunk *chunk_new(struct malloc_infos *list, size_t size);
+struct chunk *chunk_search(struct malloc_infos *list, size_t size);
 void chunk_give_back(struct malloc_infos *list);
 void chunk_split(struct malloc_infos *list, struct chunk *chunk, size_t size);
 void chunk_fusion(struct malloc_infos *list, struct chunk *chunk);
 
-void chunk_insert_free(struct malloc_infos *list, struct chunk *pos,
-		       struct chunk *chunk);
 void chunk_insert_main(struct malloc_infos *list, struct chunk *pos,
 		       struct chunk *chunk);
 void show_alloc_mem(void);
@@ -102,6 +107,12 @@ void show_alloc_mem(void);
 
 # include <stdio.h>
 # include <unistd.h>
+
+static inline void *
+align(char *p, size_t align)
+{
+  return (void *) (align + (((unsigned long)(p - 1)) & ~(align - 1)));
+}
 
 static inline int
 free_bucket(size_t size)

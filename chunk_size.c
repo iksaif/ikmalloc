@@ -21,5 +21,5 @@ chunk_size(void *ptr)
 {
   if (!ptr)
     return (0);
-  return ((((struct chunk *) ptr - 1)->size - 1) * sizeof(struct chunk));
+  return ((struct chunk *) ptr - 1)->size;
 }

@@ -28,17 +28,6 @@
   } while (0)
 
 void
-chunk_insert_free(struct malloc_infos *list, struct chunk *pos,
-		  struct chunk *chunk)
-{
-  int i;
-
-  i = free_bucket(chunk->size);
-  LIST_INSERT(list->lfree[i], pos, chunk, free);
-  chunk->type = MALLOC_CHUNK_FREE;
-}
-
-void
 chunk_insert_main(struct malloc_infos *list, struct chunk *pos,
 		  struct chunk *chunk)
 {

@@ -35,6 +35,7 @@ chunk_remove_free(struct malloc_infos *list, struct chunk *chunk)
 
   i = free_bucket(chunk->size);
   LIST_REMOVE(list->lfree[i], chunk, free);
+  list->lfree_cnt[i]--;
   chunk->type = MALLOC_CHUNK_USED;
 }
 

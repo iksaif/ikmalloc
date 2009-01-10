@@ -32,7 +32,9 @@ chunk_append_free(struct malloc_infos *list, struct chunk *chunk)
 
   i = free_bucket(chunk->size);
   LIST_APPEND(list->lfree[i], chunk, free);
+  list->lfree_cnt[i]++;
   chunk->type = MALLOC_CHUNK_FREE;
+  chunk->asked_size = 0;
 }
 
 void
