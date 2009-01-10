@@ -127,19 +127,6 @@ end:
   return p;
 }
 
-/*
-  unmap
-
- Utiliser likely et unlikely
- Faire mieux les stats
- Voir pour size_t trop petit des fois
- Implémenter
- posix_memalign
- strdup
- strndup
- asprintf
- asvprintf
-*/
 void *
 get_chunk(size_t size)
 {

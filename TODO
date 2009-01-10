@@ -1,0 +1,7 @@
+
+- Use munmap in chunk_give_back
+- Use mremap in realloc
+- likely/unlikely
+- MALLOC_MIN_SIZE should include sizeof (struct chunk)
+- Does chunk_fusion realy work ?
+
