@@ -26,7 +26,7 @@ static void
 lock(void)
 {
 # ifdef MALLOC_USES_SPINLOCK
-  pthread_spin_unlock(&arena.mutex);
+  pthread_spin_lock(&arena.mutex);
 # else
   pthread_mutex_lock(&arena.mutex);
 # endif
