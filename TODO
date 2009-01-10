@@ -5,3 +5,7 @@
 - MALLOC_MIN_SIZE should include sizeof (struct chunk)
 - Does chunk_fusion realy work ?
 
+- Use mmap only when size >= MMAP_THRESHOLD
+
+- mallopt
+- malloc_set_state/malloc_get_state
