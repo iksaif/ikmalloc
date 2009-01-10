@@ -20,8 +20,6 @@
 
 #include "malloc.h"
 
-#define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
-
 static struct malloc_infos arena = {.needinit = 1 };
 
 static void
