@@ -20,11 +20,14 @@
 
 #include "malloc.h"
 
-static struct malloc_infos arena = {.needinit = 1 };
+static struct malloc_infos arena;
+static int __malloc_initialized = 0;
 
 static void
 lock(void)
 {
+  if (unlikely(!__malloc_initialized))
+    return ;
 # ifdef MALLOC_USES_SPINLOCK
   pthread_spin_lock(&arena.mutex);
 # else
@@ -35,6 +38,8 @@ lock(void)
 static void
 unlock(void)
 {
+  if (unlikely(!__malloc_initialized))
+    return ;
 # ifdef MALLOC_USES_SPINLOCK
   pthread_spin_unlock(&arena.mutex);
 # else
@@ -56,8 +61,9 @@ npowof2(size_t size)
 static void
 malloc_init(void)
 {
-  if (arena.needinit)
-    memset(&arena, 0, sizeof(arena));
+  if (likely(__malloc_initialized))
+    return ;
+  memset(&arena, 0, sizeof(arena));
 # ifdef MALLOC_USES_SPINLOCK
   pthread_spin_init(&arena.mutex, PTHREAD_PROCESS_SHARED);
 # else

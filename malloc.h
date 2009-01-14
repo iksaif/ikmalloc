@@ -69,7 +69,6 @@ struct chunk
 
 struct malloc_infos
 {
-  int needinit;
 # ifdef MALLOC_USES_SPINLOCK
   pthread_spinlock_t mutex;
 # else
@@ -80,6 +79,9 @@ struct malloc_infos
   struct chunk *lfree[MALLOC_SHIFT_HIGH + 1];
   size_t lfree_cnt[MALLOC_SHIFT_HIGH + 1];
 };
+
+#define likely(x)       __builtin_expect(!!(x),1)
+#define unlikely(x)     __builtin_expect(!!(x),0)
 
 void free_chunk(void *ptr);
 void *get_chunk(size_t size);
