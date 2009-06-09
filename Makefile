@@ -1,6 +1,6 @@
 NAME	= libikmalloc.so
 
-CC	= gcc
+CC	?= gcc
 
 INCDIRS	+=
 LDLIBS	+=
@@ -13,7 +13,7 @@ SRCS	=	malloc.c realloc.c calloc.c free.c chunk.c chunk_give_back.c \
 
 OBJS	=	$(SRCS:.c=.o)
 
-CFLAGS	= -O2 -ggdb3
+CFLAGS	?= -O2 -ggdb3
 CFLAGS	+= -std=c99 -fPIC
 CFLAGS	+= -Wall -W -Wstrict-prototypes -pedantic -Werror -D_GNU_SOURCE -DMALLOC_DEBUG
 LFLAGS	+= -shared -lpthread
